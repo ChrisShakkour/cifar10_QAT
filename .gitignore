@@ -1,0 +1,7 @@
+**.venv
+logs/*
+*__pycache__*
+*.png
+*.json
+saved_model/*
+git.code-workspace
