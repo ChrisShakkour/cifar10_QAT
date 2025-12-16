@@ -3,6 +3,6 @@ logs/*
 *__pycache__*
 *.png
 *.json
-saved_model/*
-git.code-workspace
 out
+git.code-workspace
+saved_model/*

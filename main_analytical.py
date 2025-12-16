@@ -187,7 +187,7 @@ using_gdtuo=True
 #11 - Training all times together for x epochs then taking the learned values and training them again all times together to find the following x epochs
 num_solution =5
 #The learning rate   set used to train the a parameters
-a_lr = 0.0
+args.optimizer.a_learning_rate = 0.0
 #Decides how many diffrent a parameters for each weight
 #0 - a per element, every element in the weight gets a repective a parameter
 #1 - a per layer, every weight gets one a parameter
@@ -837,11 +837,11 @@ def main_all_times_repeat(model,args,modules_to_replace_temp,train_loader,logger
         for seg in range(0,500):
             print(seg," Segment of training, using the optimal weights we found for previous segment")
             #if seg != 0:
-            #    model.load_state_dict(torch.load('/home/gild/Lsq_with_gSTE/models_saved/num_sol_'+str(num_solution)+'_lr_'+str(a_lr)+"_each_time_"+str(num_of_epochs_each_time)+".pth"))       
+            #    model.load_state_dict(torch.load('/home/gild/Lsq_with_gSTE/models_saved/num_sol_'+str(num_solution)+'_lr_'+str(args.optimizer.a_learning_rate)+"_each_time_"+str(num_of_epochs_each_time)+".pth"))       
             model_copy = copy.deepcopy(model)
 
 
-            optim = SGD_Delayed_Updates(0.01,0.0,a_lr)
+            optim = SGD_Delayed_Updates(0.01,0.0,args.optimizer.a_learning_rate)
             mw = ModuleWrapper(model, optim, modules_to_replace_temp,args.quan.excepts)
             #print(" check modules_to_replace_temp : ",modules_to_replace_temp)
             #print(" check args.quan.excepts : ",args.quan.excepts)
@@ -871,7 +871,7 @@ def main_all_times_repeat(model,args,modules_to_replace_temp,train_loader,logger
                     train_a_all_times(times,val_loader,train_loader,start_epoch,T,criterion,monitors,args,logger,perf_scoreboard,tbmonitor,mw,num_solution,num_of_epochs_each_time,seg)
                     v_top1, v_top5, v_loss = process.validate(test_loader, mw, criterion, start_epoch, monitors, args)
                     v_top1_list.append(v_top1)
-                    torch.save(model.state_dict(), '/home/gild/Lsq_with_gSTE/models_saved/num_sol_'+str(num_solution)+'_lr_'+str(a_lr)+"_each_time_"+str(num_of_epochs_each_time)+".pth")
+                    torch.save(model.state_dict(), '/home/gild/Lsq_with_gSTE/models_saved/num_sol_'+str(num_solution)+'_lr_'+str(args.optimizer.a_learning_rate)+"_each_time_"+str(num_of_epochs_each_time)+".pth")
 
                     prev_model = model.state_dict()
 
@@ -907,9 +907,9 @@ def main_all_times_repeat(model,args,modules_to_replace_temp,train_loader,logger
 
 
                     if num_solution == 7:
-                        optim = SGD_Delayed_Updates_meta_network(0.01,0.0,a_lr)
+                        optim = SGD_Delayed_Updates_meta_network(0.01,0.0,args.optimizer.a_learning_rate)
                     else:
-                        optim = SGD_Delayed_Updates(0.01,0.0,a_lr)
+                        optim = SGD_Delayed_Updates(0.01,0.0,args.optimizer.a_learning_rate)
                         
                     mw = ModuleWrapper(model_new, optim, modules_to_replace_temp,args.quan.excepts)
 
@@ -934,10 +934,10 @@ def main_all_times_keep_last_trained_a(model,args,modules_to_replace_temp,train_
     if num_solution == 10:
         print(seg," Segment of training, using the optimal weights we found for previous segment")
         #if seg != 0:
-        #    model.load_state_dict(torch.load('/home/gild/Lsq_with_gSTE/models_saved/num_sol_'+str(num_solution)+'_lr_'+str(a_lr)+"_each_time_"+str(num_of_epochs_each_time)+".pth"))       
+        #    model.load_state_dict(torch.load('/home/gild/Lsq_with_gSTE/models_saved/num_sol_'+str(num_solution)+'_lr_'+str(args.optimizer.a_learning_rate)+"_each_time_"+str(num_of_epochs_each_time)+".pth"))       
         model_copy = copy.deepcopy(model)
         
-        optim = SGD_Delayed_Updates(0.01,0.0,a_lr)
+        optim = SGD_Delayed_Updates(0.01,0.0,args.optimizer.a_learning_rate)
         mw = ModuleWrapper(model, optim, modules_to_replace_temp,args.quan.excepts)
         #print(" check modules_to_replace_temp : ",modules_to_replace_temp)
         #print(" check args.quan.excepts : ",args.quan.excepts)
@@ -963,7 +963,7 @@ def main_all_times_keep_last_trained_a(model,args,modules_to_replace_temp,train_
                 #temp_copy= copy.deepcopy(model)
                 #print("beg train_a in main :",t.cuda.memory_summary(device=None, abbreviated=False))
                 train_a_all_times(times,val_loader,train_loader,start_epoch,T,criterion,monitors,args,logger,perf_scoreboard,tbmonitor,mw,num_solution,num_of_epochs_each_time,0)
-                torch.save(model.state_dict(), '/home/gild/Lsq_with_gSTE/models_saved/num_sol_'+str(num_solution)+'_lr_'+str(a_lr)+"_each_time_"+str(num_of_epochs_each_time)+".pth")
+                torch.save(model.state_dict(), '/home/gild/Lsq_with_gSTE/models_saved/num_sol_'+str(num_solution)+'_lr_'+str(args.optimizer.a_learning_rate)+"_each_time_"+str(num_of_epochs_each_time)+".pth")
                 
                 prev_model = model.state_dict()
                 
@@ -992,7 +992,7 @@ def main_all_times_keep_last_trained_a(model,args,modules_to_replace_temp,train_
                 counter+=1
                 print("aft val assignment :",t.cuda.memory_summary(device=None, abbreviated=False))
                 if times==args.epochs-1:
-                    model.load_state_dict(torch.load('/home/gild/Lsq_with_gSTE/models_saved/num_sol_'+str(num_solution)+'_lr_'+str(a_lr)+"_each_time_"+str(num_of_epochs_each_time)+".pth"))       
+                    model.load_state_dict(torch.load('/home/gild/Lsq_with_gSTE/models_saved/num_sol_'+str(num_solution)+'_lr_'+str(args.optimizer.a_learning_rate)+"_each_time_"+str(num_of_epochs_each_time)+".pth"))       
                     for name, mod in model.named_modules():
                         if name.endswith('quan_w_fn'):
                             #print("check if grad is not zero : ",param.grad)
@@ -1001,16 +1001,16 @@ def main_all_times_keep_last_trained_a(model,args,modules_to_replace_temp,train_
                             #print("print histogram value : ",prev_model[name])
                             #print("print name : ",name)
     
-                    a_lr=0
+                    args.optimizer.a_learning_rate=0
                     train_a_all_times(times,val_loader,train_loader,start_epoch,T,criterion,monitors,args,logger,perf_scoreboard,tbmonitor,mw,num_solution,100,0)
                 model=None
                 model=model_new
                 
                 
                 if num_solution == 7:
-                    optim = SGD_Delayed_Updates_meta_network(0.01,0.0,a_lr)
+                    optim = SGD_Delayed_Updates_meta_network(0.01,0.0,args.optimizer.a_learning_rate)
                 else:
-                    optim = SGD_Delayed_Updates(0.01,0.0,a_lr)
+                    optim = SGD_Delayed_Updates(0.01,0.0,args.optimizer.a_learning_rate)
                 
                 mw = ModuleWrapper(model_new, optim, modules_to_replace_temp,args.quan.excepts)
                 mw.initialize()
@@ -1039,11 +1039,11 @@ def main_all_times(model,args,modules_to_replace_temp,train_loader,logger,test_l
     #train_loader_copy = copy.deepcopy(train_loader)
 
     #gdtuo support
-    #a_lr = 1e3
+    #args.optimizer.a_learning_rate = 1e3
     if num_solution == 7:
-        optim = SGD_Delayed_Updates_meta_network(0.01,0.0,a_lr)
+        optim = SGD_Delayed_Updates_meta_network(0.01,0.0,args.optimizer.a_learning_rate)
     else:
-        optim = SGD_Delayed_Updates(0.01,0.0,a_lr)
+        optim = SGD_Delayed_Updates(0.01,0.0,args.optimizer.a_learning_rate)
     mw = ModuleWrapper(model, optim, modules_to_replace_temp,args.quan.excepts)
     #print(" check modules_to_replace_temp : ",modules_to_replace_temp)
     #print(" check args.quan.excepts : ",args.quan.excepts)
@@ -1076,7 +1076,7 @@ def main_all_times(model,args,modules_to_replace_temp,train_loader,logger,test_l
             train_a_all_times(times,val_loader,train_loader,start_epoch,T,criterion,monitors,args,logger,perf_scoreboard,tbmonitor,mw,num_solution,num_of_epochs_each_time,0)
             v_top1, v_top5, v_loss = process.validate(test_loader, mw, criterion, start_epoch, monitors, args)
             v_top1_list.append(v_top1)
-            torch.save(model.state_dict(), '/home/gild/Lsq_with_gSTE/models_saved/num_sol_'+str(num_solution)+'_lr_'+str(a_lr)+"_each_time_"+str(num_of_epochs_each_time)+".pth")
+            torch.save(model.state_dict(), '/home/gild/Lsq_with_gSTE/models_saved/num_sol_'+str(num_solution)+'_lr_'+str(args.optimizer.a_learning_rate)+"_each_time_"+str(num_of_epochs_each_time)+".pth")
 
             prev_model = model.state_dict()
 
@@ -1121,9 +1121,9 @@ def main_all_times(model,args,modules_to_replace_temp,train_loader,logger,test_l
 
 
             #if num_solution == 7:
-            #    optim = SGD_Delayed_Updates_meta_network(0.01,0.0,a_lr)
+            #    optim = SGD_Delayed_Updates_meta_network(0.01,0.0,args.optimizer.a_learning_rate)
             #else:
-            #    optim = SGD_Delayed_Updates(0.01,0.0,a_lr)
+            #    optim = SGD_Delayed_Updates(0.01,0.0,args.optimizer.a_learning_rate)
 
             #mw = ModuleWrapper(model_new, optim, modules_to_replace_temp,args.quan.excepts)
             gc.collect()
@@ -1134,7 +1134,7 @@ def main_all_times(model,args,modules_to_replace_temp,train_loader,logger,test_l
             print("v_top1_list : ",v_top1_list)
             # counter+=1
             # if counter == 15:
-            #     a_lr=1e1
+            #     args.optimizer.a_learning_rate=1e1
         #finished training
 
 

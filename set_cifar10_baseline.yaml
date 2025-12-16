@@ -111,19 +111,19 @@ quan:
 
 # Evaluate the model without training
 # If this field is true, all the bellowing options will be ignored
-eval: false # bullshit
+eval: true # bullshit
 
-baseline_eval: false # Run validation on the baseline model in 32 bit before quantization training
+baseline_eval: true # Run validation on the baseline model in 32 bit before quantization training
 baseline_training: false # fully train the baseline model in 32 bit without quantization no STE -> set num of epochs accordigly
 
-epochs: 4 # num of times the weights were trained befor eupdating a 
-num_epochs_div_repeats: 50
+epochs: 40 # num of times the weights were trained befor eupdating a 
+num_epochs_div_repeats: 10
 
 optimizer:
-  w_learning_rate: 0.02 # Weights Learning Rate
+  w_learning_rate: 0.01 # Weights Learning Rate
   a_learning_rate: 1e5  # LSTE Learning Rate
-  momentum: 0.0
-  weight_decay: 0.0
+  momentum: 0.9
+  weight_decay: 0.0001
 
 # Learning rate scheduler
 lr_scheduler:

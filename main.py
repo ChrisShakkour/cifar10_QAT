@@ -44,6 +44,79 @@ def set_random_seed(random_seed):
 
 seed = 0
 
+def baseline_model_evaliation(model,criterion,args,logger,train_loader,test_loader):
+    # Evaluate the baseline model
+    logger.info('>>>>>>>> Baseline Model Evaluation')
+    model.to(args.device.type)
+
+    # Evaluate baseline model on test set
+    top1, top5, loss = process.validate(test_loader, model, criterion, -1, [], args)
+    logger.info('Baseline Model Test Top-1 Accuracy: %.2f%%' % top1)
+    logger.info('Baseline Model Test Loss: %.2f' % loss)
+
+    # Evaluate baseline model on train set
+    top1, top5, loss = process.validate(train_loader, model, criterion, -1, [], args)
+    logger.info('Baseline Model Train Top-1 Accuracy: %.2f%%' % top1)
+    logger.info('Baseline Model Train Loss: %.2f' % loss)
+    return
+
+
+def baseline_model_training(model,criterion,args,logger,train_loader,test_loader,monitors,log_dir):
+    logging.info('>>>>>>>> Baseline Model Training')
+    model.to(args.device.type)
+    # set optimizer and lr scheduler
+    optimizer = t.optim.SGD(model.parameters(),
+                            lr=args.optimizer.w_learning_rate,
+                            momentum=args.optimizer.momentum,
+                            weight_decay=args.optimizer.weight_decay)
+    logger.info(('Optimizer: %s' % optimizer).replace('\n', '\n' + ' ' * 11))
+    
+    # set learning rate scheduler
+    lr_scheduler = util.lr_scheduler(optimizer,
+                                     batch_size=train_loader.batch_size,
+                                     num_samples=len(train_loader.sampler),
+                                     **args.lr_scheduler)
+    logger.info('LR scheduler: %s\n' % lr_scheduler)
+
+    perf_scoreboard = process.PerformanceScoreboard(args.log.num_best_scores)
+    train_top1_list=[]
+    train_loss_list=[]
+    test_top1_list=[]
+    test_loss_list=[]
+    
+    temp_seed=0
+    set_random_seed(temp_seed)
+    for epoch in range(0, args.epochs):
+        logger.info('>>>>>>>> Epoch %3d' % epoch)
+        top1, top5, loss = process.train(train_loader, model, criterion, optimizer,
+                                        lr_scheduler, epoch, monitors, args)
+
+        # train set evaluation
+        #top1, top5, loss = process.validate(train_loader, model, criterion, epoch, monitors, args)
+        train_top1_list.append(top1)
+        train_loss_list.append(loss)
+        # test set evaluation
+        top1, top5, loss = process.validate(test_loader, model, criterion, epoch, monitors, args)
+        test_top1_list.append(top1)
+        test_loss_list.append(loss)
+
+    plot_4_arrays_save(arr1=train_top1_list, arr2=test_top1_list, arr3=train_loss_list, arr4=test_loss_list,
+                        save_path= str(log_dir) +"/Baseline_training_progress.png",
+                        cmap="viridis",
+                        titles=["Train Top1 Accuracy", "Test Top1 Accuracy", "Train Loss", "Test Loss"])
+    save_and_plot_losses(test_loss_list  , str(log_dir) + "/test_loss.npy"    , str(log_dir) + "/test_loss.png"    , "loss" , "Test Loss")
+    save_and_plot_losses(train_loss_list , str(log_dir) + "/train_loss.npy"   , str(log_dir) + "/train_loss.png"   , "loss" , "Train Loss")
+    save_and_plot_losses(train_top1_list , str(log_dir) + "/train_top1.npy"   , str(log_dir) + "/train_top1.png"   , "top1" , "Train Top1 Accuracy")
+    save_and_plot_losses(test_top1_list  , str(log_dir) + "/test_top1.npy"    , str(log_dir) + "/test_top1.png"    , "top1" , "Test Top1 Accuracy")
+
+    logger.info('>>>>>>>> Epoch {} (final model evaluation)'.format(epoch))
+    logger.info('Baseline Model Train Top-1 Accuracy: %.2f%%' % train_top1_list[-1])
+    logger.info('Baseline Model Train Loss: %.2f' % train_loss_list[-1])
+    logger.info('Baseline Model Test Top-1 Accuracy: %.2f%%' % test_top1_list[-1])
+    logger.info('Baseline Model Test Loss: %.2f' % test_loss_list[-1])
+    return
+
+
 #Which solution to use for the problem of depending on the future:
 # -1 - regular STE 
 # 0 - analytical soltuion for gSTE
@@ -63,7 +136,6 @@ seed = 0
 num_solution = 11
 
 #The learning rate   set used to train the a parameters
-a_lr = 1e5
 backward_for_test = "1 bit DoReFa with DualPWL"
 #Decides how many diffrent a parameters for each weight
 #0 - a per element, every element in the weight gets a repective a parameter
@@ -76,7 +148,7 @@ num_share_params=1
 
 #In all time todgether training this sets the amount of epochs learned before startin learning from screatch
 num_of_epochs_each_time = 1
-num_epochs_div_repeats = 1
+
 def main():
     #Get script directory
     script_dir = Path.cwd()
@@ -136,10 +208,22 @@ def main():
       " Name:", torch.cuda.get_device_name(0))
     
     print("torch.cuda.current_device()",torch.cuda.current_device())
-    print("t.cuda.memory_summary",t.cuda.memory_summary(device=None, abbreviated=False))
-    print("torch.cuda.mem_get_info()",torch.cuda.mem_get_info())
+    #print("t.cuda.memory_summary",t.cuda.memory_summary(device=None, abbreviated=False))
+    #print("torch.cuda.mem_get_info()",torch.cuda.mem_get_info())
+    
+    # Create the model
     model = create_model(args)
     
+    # Define loss function (criterion) and optimizer
+    criterion = t.nn.CrossEntropyLoss().to(args.device.type)
+
+    if args.baseline_eval:
+        baseline_model_evaliation(model,criterion,args,logger,train_loader,test_loader)
+        return
+    
+    if args.baseline_training:
+        baseline_model_training(model,criterion,args,logger,train_loader,test_loader,monitors,log_dir)
+        return
 
     T = len(train_loader)*num_of_epochs_each_time# A vector length for All times together solution (# of learning steps before update)
     list_for_lsq=[T, a_per,num_share_params]
@@ -158,8 +242,6 @@ def main():
         model, start_epoch, _ = util.load_checkpoint(
             model, args.resume.path, args.device.type, lean=args.resume.lean)
 
-    # Define loss function (criterion) and optimizer
-    criterion = t.nn.CrossEntropyLoss().to(args.device.type)
 
     if num_solution == 0:
         pass
@@ -273,7 +355,6 @@ def main_all_times_repeat(model,args,modules_to_replace_temp,train_loader,logger
     
     v_top1_list=[]
     stats_list = []
-    a_lr_t=a_lr
     load_from_prev = False
     if load_from_prev == True:
         model, start_epoch, _ = util.load_checkpoint(
@@ -288,7 +369,7 @@ def main_all_times_repeat(model,args,modules_to_replace_temp,train_loader,logger
         test_loss = []
 
         run_cfg = {
-        "a_w_learning_rate": a_lr,
+        "a_w_learning_rate": args.optimizer.a_learning_rate,
         "num_solution": num_solution
         }
         results_file = init_results_file(
@@ -297,11 +378,11 @@ def main_all_times_repeat(model,args,modules_to_replace_temp,train_loader,logger
             log_params=run_cfg
         )
 
-        for seg in range(0,num_epochs_div_repeats):
+        for seg in range(0,args.num_epochs_div_repeats):
             print(seg," Segment of training, using the optimal weights we found for previous segment")
             model_copy=None
             model_copy = copy.deepcopy(model)
-            optim = SGD_Delayed_Updates(args.optimizer.w_learning_rate,0.0,a_lr_t)
+            optim = SGD_Delayed_Updates(args.optimizer.w_learning_rate,0.0,args.optimizer.a_learning_rate)
             mw = ModuleWrapper(model, optim, modules_to_replace_temp,args.quan.excepts)
             mw.initialize()
 
@@ -337,7 +418,7 @@ def main_all_times_repeat(model,args,modules_to_replace_temp,train_loader,logger
                     train_loss.append(t_loss)
 
                     run_cfg = {
-                            "a_w_learning_rate": a_lr,
+                            "a_w_learning_rate": args.optimizer.a_learning_rate,
                             "num_solution": num_solution
                             ,"Backward": backward_for_test
                     }
@@ -354,7 +435,7 @@ def main_all_times_repeat(model,args,modules_to_replace_temp,train_loader,logger
                         print("am here er er er @!$%!#%!#%@!#$@!#@!$!@%$!@%!@")
                         best_acc=v_top1
                         best_dict=model.state_dict().copy()
-                    #torch.save(model.state_dict(), '/home/gild/Lsq_with_gSTE/models_saved/num_sol_'+str(num_solution)+'_lr_'+str(a_lr_t)+"_each_time_"+str(num_of_epochs_each_time)+".pth")
+                    #torch.save(model.state_dict(), '/home/gild/Lsq_with_gSTE/models_saved/num_sol_'+str(num_solution)+'_lr_'+str(args.optimizer.a_learning_rate)+"_each_time_"+str(num_of_epochs_each_time)+".pth")
                     
                     prev_model = model.state_dict()
                     
@@ -412,7 +493,7 @@ def main_all_times_repeat(model,args,modules_to_replace_temp,train_loader,logger
                     model=None
                     model=model_new
                     
-                    optim = SGD_Delayed_Updates(args.optimizer.w_learning_rate,0.0,a_lr_t)
+                    optim = SGD_Delayed_Updates(args.optimizer.w_learning_rate,0.0,args.optimizer.a_learning_rate)
                     mw = ModuleWrapper(model_new, optim, modules_to_replace_temp,args.quan.excepts)
                     mw.initialize()
                     gc.collect()
@@ -444,7 +525,7 @@ def main_all_times(model,args,modules_to_replace_temp,train_loader,logger,test_l
     model_copy = copy.deepcopy(model)
     compare_models(model_copy, model)
 
-    optim = SGD_Delayed_Updates(args.optimizer.w_learning_rate,0.0,a_lr)
+    optim = SGD_Delayed_Updates(args.optimizer.w_learning_rate,0.0,args.optimizer.a_learning_rate)
     mw = ModuleWrapper(model, optim, modules_to_replace_temp,args.quan.excepts)
     mw.initialize()
 
@@ -466,7 +547,7 @@ def main_all_times(model,args,modules_to_replace_temp,train_loader,logger,test_l
             v_top1, v_top5, v_loss = process.validate(test_loader, mw, criterion, start_epoch, monitors, args)
             
             v_top1_list.append(v_top1)
-            #torch.save(model.state_dict(), '/home/gild/Lsq_with_gSTE/models_saved/num_sol_'+str(num_solution)+'_lr_'+str(a_lr)+"_each_time_"+str(num_of_epochs_each_time)+".pth")
+            #torch.save(model.state_dict(), '/home/gild/Lsq_with_gSTE/models_saved/num_sol_'+str(num_solution)+'_lr_'+str(args.optimizer.a_learning_rate)+"_each_time_"+str(num_of_epochs_each_time)+".pth")
             
             prev_model = model.state_dict()
             
@@ -491,7 +572,7 @@ def main_all_times(model,args,modules_to_replace_temp,train_loader,logger,test_l
             model=model_new
             
             
-            optim = SGD_Delayed_Updates(args.optimizer.w_learning_rate,0.0,a_lr)
+            optim = SGD_Delayed_Updates(args.optimizer.w_learning_rate,0.0,args.optimizer.a_learning_rate)
             
             mw = ModuleWrapper(model_new, optim, modules_to_replace_temp,args.quan.excepts)
 
@@ -573,7 +654,6 @@ def main_all_times_less_greedy(model,args,modules_to_replace_temp,train_loader,l
     
     v_top1_list=[]
     stats_list = []
-    a_lr_t=a_lr
     if num_solution == 12:
         set_random_seed(seed)
         temp_seed=0
@@ -581,7 +661,7 @@ def main_all_times_less_greedy(model,args,modules_to_replace_temp,train_loader,l
         train_top1_list=[]
         test_top1_list = []
         run_cfg = {
-        "a_w_learning_rate": a_lr,
+        "a_w_learning_rate": args.optimizer.a_learning_rate,
         "num_solution": num_solution
         }
         results_file = init_results_file(
@@ -590,12 +670,12 @@ def main_all_times_less_greedy(model,args,modules_to_replace_temp,train_loader,l
             log_params=run_cfg
         )
 
-        for seg in range(0,num_epochs_div_repeats):
+        for seg in range(0,args.num_epochs_div_repeats):
             print(seg," Segment of training, using the optimal weights we found for previous segment")
             model_copy=None
             model_copy = copy.deepcopy(model)
 
-            optim = SGD_less_greedy_Updates(args.optimizer.w_learning_rate,0.0,a_lr_t)
+            optim = SGD_less_greedy_Updates(args.optimizer.w_learning_rate,0.0,args.optimizer.a_learning_rate)
             mw = ModuleWrapper(model, optim, modules_to_replace_temp,args.quan.excepts)
             mw.initialize()
 
@@ -625,7 +705,7 @@ def main_all_times_less_greedy(model,args,modules_to_replace_temp,train_loader,l
                     train_top1_list.append(t_top1)
                     test_top1_list.append(v_top1)
                     run_cfg = {
-                            "a_w_learning_rate": a_lr,
+                            "a_w_learning_rate": args.optimizer.a_learning_rate,
                             "num_solution": num_solution
                             ,"Backward": backward_for_test
                     }
@@ -639,14 +719,13 @@ def main_all_times_less_greedy(model,args,modules_to_replace_temp,train_loader,l
                     )
                     #second version:
                     #dump_three_lists(list_train, test_top1_list, [6], "train_top1", "test_top1", "C",path="/home/gild/Lsq_with_gSTE/out", log_params=run_cfg  )
-                    #torch.save(model.state_dict(), '/home/gild/Lsq_with_gSTE/models_saved/num_sol_'+str(num_solution)+'_lr_'+str(a_lr_t)+"_each_time_"+str(num_of_epochs_each_time)+".pth")
+                    #torch.save(model.state_dict(), '/home/gild/Lsq_with_gSTE/models_saved/num_sol_'+str(num_solution)+'_lr_'+str(args.optimizer.a_learning_rate)+"_each_time_"+str(num_of_epochs_each_time)+".pth")
                     
                     prev_model = model.state_dict()
                     #print("befdeepcopy :",t.cuda.memory_summary(device=None, abbreviated=False))
 
                     model_new= copy.deepcopy(model_copy)
                     #print("aftdeepcopy :",t.cuda.memory_summary(device=None, abbreviated=False))
-
                     
                     with torch.no_grad():#saving trained a values between iterations
                         flag=0
@@ -695,8 +774,7 @@ def main_all_times_less_greedy(model,args,modules_to_replace_temp,train_loader,l
                     model=model_new
                     
                     
-                    optim = SGD_less_greedy_Updates(args.optimizer.w_learning_rate,0.0,a_lr_t)
-                    
+                    optim = SGD_less_greedy_Updates(args.optimizer.w_learning_rate,0.0,args.optimizer.a_learning_rate)
                     mw = ModuleWrapper(model_new, optim, modules_to_replace_temp,args.quan.excepts)
 
                     mw.initialize()

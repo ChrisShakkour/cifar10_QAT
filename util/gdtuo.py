@@ -1,6 +1,25 @@
 import torch
 from quan.quantizer import lsq
 
+
+def _to_tensor(val, dtype=torch.float32):
+    """Convert numeric-like inputs to a torch tensor of given dtype.
+
+    Accepts int, float, str representations of numbers, or an existing torch.Tensor.
+    Raises TypeError with a helpful message if conversion fails.
+    """
+    if isinstance(val, torch.Tensor):
+        return val
+    # allow None to pass through (in case callers rely on None)
+    if val is None:
+        return None
+    try:
+        # float() handles ints and numeric strings (including scientific notation)
+        num = float(val)
+    except Exception:
+        raise TypeError(f"Expected a numeric value for tensor conversion, got {val!r} of type {type(val)}")
+    return torch.tensor(num, dtype=dtype)
+
 class Optimizable:
     '''
     This is the interface for anything that has parameters that need to be
@@ -127,8 +146,8 @@ class SGD(Optimizable):
         self.mu = mu
         self.state = {}
         parameters = {
-            'alpha': torch.tensor(alpha),
-            'mu': torch.tensor(mu)
+            'alpha': _to_tensor(alpha),
+            'mu': _to_tensor(mu)
         }
         super().__init__(parameters, optimizer)
 
@@ -166,9 +185,9 @@ class SGD_Delayed_Updates(Optimizable):
         self.mu = mu
         self.state = {}
         parameters = {
-            'alpha': torch.tensor(alpha),
-            'mu': torch.tensor(mu),
-            'alpha_for_a':torch.tensor(alpha_for_a)
+            'alpha': _to_tensor(alpha),
+            'mu': _to_tensor(mu),
+            'alpha_for_a': _to_tensor(alpha_for_a)
         }
         self.eta={}
         self.save_f={}
@@ -241,9 +260,9 @@ class SGD_Delayed_Updates_DualPWL(Optimizable):
         self.mu = mu
         self.state = {}
         parameters = {
-            'alpha': torch.tensor(alpha),
-            'mu': torch.tensor(mu),
-            'alpha_for_a':torch.tensor(alpha_for_a)
+            'alpha': _to_tensor(alpha),
+            'mu': _to_tensor(mu),
+            'alpha_for_a': _to_tensor(alpha_for_a)
         }
         self.eta={}
         self.save_f={}
@@ -317,9 +336,9 @@ class SGD_less_greedy_Updates(Optimizable):
         self.mu = mu
         self.state = {}
         parameters = {
-            'alpha': torch.tensor(alpha),
-            'mu': torch.tensor(mu),
-            'alpha_for_a':torch.tensor(alpha_for_a)
+            'alpha': _to_tensor(alpha),
+            'mu': _to_tensor(mu),
+            'alpha_for_a': _to_tensor(alpha_for_a)
         }
         self.eta={}
         self.save_f={}
