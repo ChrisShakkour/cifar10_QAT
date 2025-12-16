@@ -5,7 +5,7 @@ from .quantizer import *
 
 
 def quantizer(name,num_solution,list_for_lsq,default_cfg, this_cfg=None):
-    print("yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy")
+    #print("yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy")
     target_cfg = dict(default_cfg)
     if this_cfg is not None:
         print(" this_cfg ",this_cfg)
@@ -26,7 +26,7 @@ def quantizer(name,num_solution,list_for_lsq,default_cfg, this_cfg=None):
     #print("name is :",name," size name is: ",len(name))
     q_ret.update_strname(name)
     q_ret.update_list_for_lsq(num_solution,list_for_lsq)
-    print("nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn")
+    #print("nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn")
 
     return q_ret
 

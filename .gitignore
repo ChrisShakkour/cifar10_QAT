@@ -5,3 +5,4 @@ logs/*
 *.json
 saved_model/*
 git.code-workspace
+out

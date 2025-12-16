@@ -280,7 +280,7 @@ def main():
 
     for name, param in model.named_parameters():
         print("name parameters : ",name)
-    # optimizer = t.optim.Adam(model.parameters(), lr=args.optimizer.learning_rate)
+    # optimizer = t.optim.Adam(model.parameters(), lr=args.optimizer.w_learning_rate)
     
     
     if num_solution == 0:
@@ -306,9 +306,9 @@ def main():
         main_all_times_repeat(model,args,modules_to_replace_temp,train_loader,logger,test_loader,criterion,monitors,val_loader,start_epoch,tbmonitor,log_dir,T,num_of_epochs_each_time)
 def main_original(model,args,modules_to_replace_temp,train_loader,logger,test_loader,criterion,monitors,val_loader,start_epoch,tbmonitor,log_dir):
 
-    # optimizer = t.optim.Adam(model.parameters(), lr=args.optimizer.learning_rate)
+    # optimizer = t.optim.Adam(model.parameters(), lr=args.optimizer.w_learning_rate)
     optimizer = t.optim.SGD(model.parameters(),
-                            lr=args.optimizer.learning_rate,
+                            lr=args.optimizer.w_learning_rate,
                             momentum=args.optimizer.momentum,
                             weight_decay=args.optimizer.weight_decay)
     lr_scheduler = util.lr_scheduler(optimizer,
@@ -370,7 +370,7 @@ def main_analyticalgSTE(model,args,modules_to_replace_temp,train_loader,logger,t
     #parameters = [p for p in model.parameters() if (p.shape[0]!=1 or (p.shape[0]==1 or p.data==1))]
     #print("t1: ",thd_parameters)
     optimizer = t.optim.SGD(other_params_list,
-                            lr=args.optimizer.learning_rate,
+                            lr=args.optimizer.w_learning_rate,
                             momentum=args.optimizer.momentum,
                             weight_decay=args.optimizer.weight_decay)
     #Here you can change the leraning rate of a
@@ -481,7 +481,7 @@ def main_DelayedUpdates(model,args,modules_to_replace_temp,train_loader,logger,t
     #parameters = [p for p in model.parameters() if (p.shape[0]!=1 or (p.shape[0]==1 or p.data==1))]
     #print("t1: ",thd_parameters)
     optimizer = t.optim.SGD(other_params_list,
-                            lr=args.optimizer.learning_rate,
+                            lr=args.optimizer.w_learning_rate,
                             momentum=args.optimizer.momentum,
                             weight_decay=args.optimizer.weight_decay)
     #Here you can change the leraning rate of a
@@ -603,7 +603,7 @@ def main_DelayedUpdates_meta_network_all_time(model,args,modules_to_replace_temp
     #parameters = [p for p in model.parameters() if (p.shape[0]!=1 or (p.shape[0]==1 or p.data==1))]
     #print("t1: ",thd_parameters)
     optimizer = t.optim.SGD(other_params_list,
-                            lr=args.optimizer.learning_rate,
+                            lr=args.optimizer.w_learning_rate,
                             momentum=args.optimizer.momentum,
                             weight_decay=args.optimizer.weight_decay)
     #Here you can change the leraning rate of a
@@ -718,7 +718,7 @@ def main_analytical_all_time(model,args,modules_to_replace_temp,train_loader,log
         else:
             other_params_list.append(param)
     optimizer = t.optim.SGD(other_params_list,
-                            lr=args.optimizer.learning_rate,
+                            lr=args.optimizer.w_learning_rate,
                             momentum=args.optimizer.momentum,
                             weight_decay=args.optimizer.weight_decay)
     #Here you can change the leraning rate of a

@@ -116,7 +116,7 @@ eval: false
 epochs: 5
 
 optimizer:
-  learning_rate: 0.3
+  w_learning_rate: 0.3
   momentum: 0
   weight_decay: 0
 

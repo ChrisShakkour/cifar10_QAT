@@ -113,10 +113,10 @@ quan:
 # If this field is true, all the bellowing options will be ignored
 eval: false
 
-epochs: 100
+epochs: 2
 
 optimizer:
-  learning_rate: 0.02
+  w_learning_rate: 0.02 # Weights Learning Rate
   momentum: 0
   weight_decay: 0
 

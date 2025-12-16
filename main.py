@@ -20,166 +20,16 @@ import os
 os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 from packaging.version import parse, Version
 from util.gdtuo import *
-# dump_once_per_run_py37_logs.py
-from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Union, Dict, Any
 
-Number = Union[int, float]
+#saving tensors and plotting
+from util.save_data import save_and_plot_losses
+from util.save_data import plot_4_arrays_save
+from util.save_data import dump_three_lists
+from util.save_data import init_results_file
+from util.save_data import append_result
 
-# ---------------------------------------------------------------------------
-# Globals that make the “one file per Python run” rule work
-_RUN_ID = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-_FILE_HANDLE: Optional[Path] = None
-# ---------------------------------------------------------------------------
-
-def save_and_plot_losses(losses, filepath="losses.npy", png_path="loss_plot.png", y_label="Loss", title="Training Loss"):
-    """
-    Saves loss values to .npy file and plots the curve.
-    """
-    # save the list
-    np.save(filepath, np.array(losses))
-    # plot
-    plt.figure()
-    plt.plot(losses)
-    plt.xlabel("Iteration")
-    plt.ylabel(y_label)
-    plt.title(title)
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig(png_path, dpi=300)
-    plt.show()
-
-def plot_4_arrays_save(arr1, arr2, arr3, arr4, save_path="grid_plot.png", cmap="viridis", titles=None):
-    """
-    Plots 4 list-based arrays on a 2x2 grid and saves the plot.
-    
-    Args:
-        arr1, arr2, arr3, arr4: 2D lists or numpy-like nested lists
-        save_path: path to save the resulting plot (e.g., 'plot.png')
-        cmap: matplotlib colormap
-        titles: optional list of 4 strings for subplot titles
-    """
-
-    # Convert to numpy arrays
-    arrays = [np.array(a) for a in [arr1, arr2, arr3, arr4]]
-
-    fig, axes = plt.subplots(2, 2, figsize=(10, 10))
-
-    for ax, arr, idx in zip(axes.flatten(), arrays, range(4)):
-        im = ax.imshow(arr, cmap=cmap)
-        if titles:
-            ax.set_title(titles[idx])
-        ax.axis("off")
-        fig.colorbar(im, ax=ax)
-
-    plt.tight_layout()
-    plt.savefig(save_path, dpi=300, bbox_inches='tight')
-    plt.close()
-
-    print(f"Plot saved to: {save_path}")
-
-def dump_three_lists(
-    a: List[Number],
-    b: List[Number],
-    c: List[Number],
-    name_a: str,
-    name_b: str,
-    name_c: str,
-    path: Union[str, Path],
-    base_name: str = "data",
-    log_params: Optional[Dict[str, Any]] = None,  # <‑‑ NEW
-) -> Path:
-    """
-    Write three numeric lists to *one* TXT file per Python run.
-    Subsequent calls in the same run overwrite the file.
-
-    Parameters
-    ----------
-    log_params : dict, optional
-        If given, each key–value pair is written at the top of the file
-        as "key: value" before the column headers.
-    """
-    global _FILE_HANDLE
-
-    path = Path(path).expanduser()
-    path.mkdir(parents=True, exist_ok=True)
-
-    if _FILE_HANDLE is None:                           # first call this run
-        _FILE_HANDLE = path / f"{base_name}_{_RUN_ID}.txt"
-
-    if _FILE_HANDLE.exists():                          # overwrite on repeat
-        _FILE_HANDLE.unlink()
-
-    # Normalise list lengths
-    max_len = max(len(a), len(b), len(c))
-    pad = lambda lst: lst + [""] * (max_len - len(lst))
-    a_p, b_p, c_p = map(pad, (a, b, c))
-
-    # ---------------- write file -----------------
-    with _FILE_HANDLE.open("w", encoding="utf-8") as f:
-        # 1. Optional run‑level parameters
-        if log_params:
-            for k, v in log_params.items():
-                f.write(f"{k}: {v}\n")
-            f.write("\n")                # blank line before the table
-
-        # 2. Column headers
-        f.write(f"{name_a}\t{name_b}\t{name_c}\n")
-
-        # 3. Rows
-        for x, y, z in zip(a_p, b_p, c_p):
-            f.write(f"{x}\t{y}\t{z}\n")
-
-    return _FILE_HANDLE
-
-from pathlib import Path
-from datetime import datetime
-
-# -------------------------------------------------------------------
-# Globals for one-file-per-run
-_RUN_ID = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-# -------------------------------------------------------------------
-
-def init_results_file(
-    path: Union[str, Path],
-    base_name: str = "data_repeat",
-    log_params: Optional[Dict[str, Any]] = None
-) -> Path:
-    """
-    Create/truncate one TXT file for this run, write run-level params
-    and the three-column header.
-    Returns the full path to the file.
-    """
-    path = Path(path).expanduser()
-    path.mkdir(parents=True, exist_ok=True)
-
-    file_path = path / f"{base_name}_{_RUN_ID}.txt"
-    with file_path.open("w", encoding="utf-8") as f:
-        # 1) run-level parameters
-        if log_params:
-            for k, v in log_params.items():
-                f.write(f"{k}: {v}\n")
-            f.write("\n")
-        # 2) column headers
-        f.write("train_top1\ttest_top1\tC\n")
-
-    return file_path
-
-# ------------------------------------------------------------------
-# Append one row of results to the file created by init_results_file.
-def append_result(
-    file_path: Union[str, Path],
-    train_val: float,
-    test_val: float,
-    c_value: Any
-) -> None:
-    """
-    Append one row of results to the file created by init_results_file.
-    `c_value` can be a list, tuple, scalar, etc (it will be str()-ed).
-    """
-    with Path(file_path).open("a", encoding="utf-8") as f:
-        f.write(f"{train_val}\t{test_val}\t{c_value}\n")
 
 def set_random_seed(random_seed):
     torch.manual_seed(random_seed)
@@ -190,7 +40,6 @@ def set_random_seed(random_seed):
     np.random.seed(random_seed)
     random.seed(random_seed)
     t.use_deterministic_algorithms(True)
-
 
 
 seed = 0
@@ -227,21 +76,29 @@ num_share_params=1
 
 #In all time todgether training this sets the amount of epochs learned before startin learning from screatch
 num_of_epochs_each_time = 1
-num_epochs_div_repeats=1
+num_epochs_div_repeats = 1
 def main():
-    print("Num solution is : ",num_solution)
-    set_random_seed(seed)
+    #Get script directory
     script_dir = Path.cwd()
+
+    # load experiment config
     args = util.get_config(default_file=script_dir / 'config.yaml')
 
+    # create output directory
     output_dir = script_dir / args.output_dir
     output_dir.mkdir(exist_ok=True)
 
+    # initialize logger and output directory
     log_dir = util.init_logger(args.name, output_dir, script_dir / 'logging.conf')
     logger = logging.getLogger()
 
+    # save experiment config
     with open(log_dir / "args.yaml", "w") as yaml_file:  # dump experiment config
         yaml.safe_dump(args, yaml_file)
+
+    # Print Run info
+    logging.info("Num solution is : {}".format(num_solution))
+    set_random_seed(seed)
 
     pymonitor = util.ProgressMonitor(logger)
     tbmonitor = util.TensorBoardMonitor(logger, log_dir)
@@ -270,9 +127,10 @@ def main():
                 '\n        Validation Set = %d (%d)' % (len(val_loader.sampler), len(val_loader)) +
                 '\n              Test Set = %d (%d)' % (len(test_loader.sampler), len(test_loader)))
 
+
     # Create the model
 
-    import os, torch
+    import torch
     print("PID:", os.getpid(),
       " CUDA device:", torch.cuda.current_device(),
       " Name:", torch.cuda.get_device_name(0))
@@ -322,10 +180,9 @@ def main():
         main_all_times_less_greedy(model,args,modules_to_replace_temp,train_loader,logger,test_loader,criterion,monitors,val_loader,start_epoch,tbmonitor,log_dir,T,num_of_epochs_each_time)
 
 def main_original(model,args,modules_to_replace_temp,train_loader,logger,test_loader,criterion,monitors,val_loader,start_epoch,tbmonitor,log_dir):
-
-    # optimizer = t.optim.Adam(model.parameters(), lr=args.optimizer.learning_rate)
+    # optimizer = t.optim.Adam(model.parameters(), lr=args.optimizer.w_learning_rate)
     optimizer = t.optim.SGD(model.parameters(),
-                            lr=args.optimizer.learning_rate,
+                            lr=args.optimizer.w_learning_rate,
                             momentum=args.optimizer.momentum,
                             weight_decay=args.optimizer.weight_decay)
     lr_scheduler = util.lr_scheduler(optimizer,
@@ -382,11 +239,9 @@ def main_original(model,args,modules_to_replace_temp,train_loader,logger,test_lo
         logger.info('>>>>>>>> Epoch -1 (final model evaluation)')
         process.validate(test_loader, model, criterion, -1, monitors, args)
 
-    
     tbmonitor.writer.close()  # close the TensorBoard
     logger.info('Program completed successfully ... exiting ...')
     logger.info('If you have any questions or suggestions, please visit: github.com/zhutmost/lsq-net')
-
 
 list_train = []
 list_vont_top1 = []
@@ -422,7 +277,7 @@ def main_all_times_repeat(model,args,modules_to_replace_temp,train_loader,logger
     load_from_prev = False
     if load_from_prev == True:
         model, start_epoch, _ = util.load_checkpoint(
-            model, "/home/gild/Lsq_with_gSTE/out/MyProject_20241029-172911/MyProject_best.pth.tar",num_solution,modules_to_replace_temp,args.quan.excepts, args.device.type)
+            model, "/home/chris/Lsq_with_gSTE/out/MyProject_20241029-172911/MyProject_best.pth.tar",num_solution,modules_to_replace_temp,args.quan.excepts, args.device.type)
     if num_solution == 11:
         set_random_seed(seed)
         temp_seed=0
@@ -433,11 +288,11 @@ def main_all_times_repeat(model,args,modules_to_replace_temp,train_loader,logger
         test_loss = []
 
         run_cfg = {
-        "a_learning_rate": a_lr,
+        "a_w_learning_rate": a_lr,
         "num_solution": num_solution
         }
         results_file = init_results_file(
-            path="/home/gild/Lsq_with_gSTE/out",         # or wherever you want to write
+            path=log_dir,
             base_name="data_repeat",
             log_params=run_cfg
         )
@@ -446,13 +301,7 @@ def main_all_times_repeat(model,args,modules_to_replace_temp,train_loader,logger
             print(seg," Segment of training, using the optimal weights we found for previous segment")
             model_copy=None
             model_copy = copy.deepcopy(model)
-            # if seg==1:
-            #     a_lr_t=a_lr_t*2
-            # if seg>1:
-            #     a_lr_t*1.1
-            #if seg>=1:
-            #    a_lr_t=a_lr_t*2
-            optim = SGD_Delayed_Updates(args.optimizer.learning_rate,0.0,a_lr_t)
+            optim = SGD_Delayed_Updates(args.optimizer.w_learning_rate,0.0,a_lr_t)
             mw = ModuleWrapper(model, optim, modules_to_replace_temp,args.quan.excepts)
             mw.initialize()
 
@@ -488,27 +337,24 @@ def main_all_times_repeat(model,args,modules_to_replace_temp,train_loader,logger
                     train_loss.append(t_loss)
 
                     run_cfg = {
-                            "a_learning_rate": a_lr,
+                            "a_w_learning_rate": a_lr,
                             "num_solution": num_solution
                             ,"Backward": backward_for_test
                     }
                     #first version:
-                    dump_three_lists(train_top1_list, test_top1_list, list_train, "train_top1", "test_top1", "C",path="/home/gild/Lsq_with_gSTE/out", log_params=run_cfg  )
+                    dump_three_lists(train_top1_list, test_top1_list, list_train, "train_top1", "test_top1", "C",path=log_dir, log_params=run_cfg  )
                     append_result(
                     file_path=results_file,
                     train_val=t_top1,
                     test_val=v_top1,
                     c_value=list_train[-1]
                 )
-                    #second version:
-                    #dump_three_lists(list_train, test_top1_list, [6], "train_top1", "test_top1", "C",path="/home/gild/Lsq_with_gSTE/out", log_params=run_cfg  )
-
 
                     if v_top1>best_acc and take_Best:
                         print("am here er er er @!$%!#%!#%@!#$@!#@!$!@%$!@%!@")
                         best_acc=v_top1
                         best_dict=model.state_dict().copy()
-                    torch.save(model.state_dict(), '/home/gild/Lsq_with_gSTE/models_saved/num_sol_'+str(num_solution)+'_lr_'+str(a_lr_t)+"_each_time_"+str(num_of_epochs_each_time)+".pth")
+                    #torch.save(model.state_dict(), '/home/gild/Lsq_with_gSTE/models_saved/num_sol_'+str(num_solution)+'_lr_'+str(a_lr_t)+"_each_time_"+str(num_of_epochs_each_time)+".pth")
                     
                     prev_model = model.state_dict()
                     
@@ -520,7 +366,7 @@ def main_all_times_repeat(model,args,modules_to_replace_temp,train_loader,logger
                         
                         for name, param in model_new.named_parameters():
                             if counter ==args.epochs-1:
-                                print("aofbfdalnb;skdaf!@#!@#@!#!@#@!#@!#@!#@!#@!#!@#@!#@!")
+                                #print("aofbfdalnb;skdaf!@#!@#@!#!@#@!#@!#@!#@!#@!#!@#@!#@!")
                                 restart_a_each_time=True
                                 if restart_a_each_time==True:
                                     if name.endswith('.a') or name.endswith('.a_n'):
@@ -566,11 +412,8 @@ def main_all_times_repeat(model,args,modules_to_replace_temp,train_loader,logger
                     model=None
                     model=model_new
                     
-                    
-                    optim = SGD_Delayed_Updates(args.optimizer.learning_rate,0.0,a_lr_t)
-                    
+                    optim = SGD_Delayed_Updates(args.optimizer.w_learning_rate,0.0,a_lr_t)
                     mw = ModuleWrapper(model_new, optim, modules_to_replace_temp,args.quan.excepts)
-
                     mw.initialize()
                     gc.collect()
                     torch.cuda.empty_cache()
@@ -580,11 +423,16 @@ def main_all_times_repeat(model,args,modules_to_replace_temp,train_loader,logger
                     #print("end",t.cuda.memory_summary(device=None, abbreviated=False))
             temp_seed+=1
 
-        save_and_plot_losses(loss_list       , str(log_dir) + "/overall_loss.npy" , str(log_dir) + "/overall_loss.png" , "loss" , "Overall Loss")
+        #save_and_plot_losses(loss_list       , str(log_dir) + "/overall_loss.npy" , str(log_dir) + "/overall_loss.png" , "loss" , "Overall Loss")
         save_and_plot_losses(test_loss       , str(log_dir) + "/test_loss.npy"    , str(log_dir) + "/test_loss.png"    , "loss" , "Test Loss")
         save_and_plot_losses(train_loss      , str(log_dir) + "/train_loss.npy"   , str(log_dir) + "/train_loss.png"   , "loss" , "Train Loss")
         save_and_plot_losses(train_top1_list , str(log_dir) + "/train_top1.npy"   , str(log_dir) + "/train_top1.png"   , "top1" , "Train Top1 Accuracy")
         save_and_plot_losses(test_top1_list  , str(log_dir) + "/test_top1.npy"    , str(log_dir) + "/test_top1.png"    , "top1" , "Test Top1 Accuracy")
+        plot_4_arrays_save(arr1=train_top1_list, arr2=test_top1_list, arr3=train_loss, arr4=test_loss,
+                           save_path=str(log_dir) + "/all_top1.png",
+                           cmap="viridis",
+                           titles=["Train Top1 Accuracy", "Test Top1 Accuracy", "Train Loss", "Test Loss"])
+
         logger.info('>>>>>>>> Epoch -1 (final model evaluation)')
         process.validate(test_loader, mw, criterion, -1, monitors, args)
         tbmonitor.writer.close()  # close the TensorBoard
@@ -596,7 +444,7 @@ def main_all_times(model,args,modules_to_replace_temp,train_loader,logger,test_l
     model_copy = copy.deepcopy(model)
     compare_models(model_copy, model)
 
-    optim = SGD_Delayed_Updates(args.optimizer.learning_rate,0.0,a_lr)
+    optim = SGD_Delayed_Updates(args.optimizer.w_learning_rate,0.0,a_lr)
     mw = ModuleWrapper(model, optim, modules_to_replace_temp,args.quan.excepts)
     mw.initialize()
 
@@ -618,7 +466,7 @@ def main_all_times(model,args,modules_to_replace_temp,train_loader,logger,test_l
             v_top1, v_top5, v_loss = process.validate(test_loader, mw, criterion, start_epoch, monitors, args)
             
             v_top1_list.append(v_top1)
-            torch.save(model.state_dict(), '/home/gild/Lsq_with_gSTE/models_saved/num_sol_'+str(num_solution)+'_lr_'+str(a_lr)+"_each_time_"+str(num_of_epochs_each_time)+".pth")
+            #torch.save(model.state_dict(), '/home/gild/Lsq_with_gSTE/models_saved/num_sol_'+str(num_solution)+'_lr_'+str(a_lr)+"_each_time_"+str(num_of_epochs_each_time)+".pth")
             
             prev_model = model.state_dict()
             
@@ -643,7 +491,7 @@ def main_all_times(model,args,modules_to_replace_temp,train_loader,logger,test_l
             model=model_new
             
             
-            optim = SGD_Delayed_Updates(args.optimizer.learning_rate,0.0,a_lr)
+            optim = SGD_Delayed_Updates(args.optimizer.w_learning_rate,0.0,a_lr)
             
             mw = ModuleWrapper(model_new, optim, modules_to_replace_temp,args.quan.excepts)
 
@@ -685,15 +533,6 @@ def train_a_all_times(times,val_loader,train_loader,start_epoch,T,criterion,moni
         t_top1, t_top5, t_loss = process.train_all_times(train_loader, mw,num_solution,T, criterion, epoch, monitors, args,base*num_of_epochs_each_time)
         # v_top1, v_top5, v_loss = process.validate(test_loader, mw, criterion, start_epoch, monitors, args)
         loss_list.append(t_loss)
-
-        # train_top1_list.append(t_top1)
-        # test_top1_list.append(v_top1)
-        # run_cfg = {
-        #         "a_learning_rate": a_lr,
-        #         "num_solution": num_solution
-                
-        # }
-        # dump_three_lists(train_top1_list, test_top1_list, [6], "train_top1", "test_top1", "C",path="/home/gild/Lsq_with_gSTE/out", log_params=run_cfg  )
         
         prev_last=last_train
         last_train=[times,t_top1]
@@ -742,11 +581,11 @@ def main_all_times_less_greedy(model,args,modules_to_replace_temp,train_loader,l
         train_top1_list=[]
         test_top1_list = []
         run_cfg = {
-        "a_learning_rate": a_lr,
+        "a_w_learning_rate": a_lr,
         "num_solution": num_solution
         }
         results_file = init_results_file(
-            path="/home/gild/Lsq_with_gSTE/out",         # or wherever you want to write
+            path=log_dir,
             base_name="data_repeat",
             log_params=run_cfg
         )
@@ -756,7 +595,7 @@ def main_all_times_less_greedy(model,args,modules_to_replace_temp,train_loader,l
             model_copy=None
             model_copy = copy.deepcopy(model)
 
-            optim = SGD_less_greedy_Updates(args.optimizer.learning_rate,0.0,a_lr_t)
+            optim = SGD_less_greedy_Updates(args.optimizer.w_learning_rate,0.0,a_lr_t)
             mw = ModuleWrapper(model, optim, modules_to_replace_temp,args.quan.excepts)
             mw.initialize()
 
@@ -786,12 +625,12 @@ def main_all_times_less_greedy(model,args,modules_to_replace_temp,train_loader,l
                     train_top1_list.append(t_top1)
                     test_top1_list.append(v_top1)
                     run_cfg = {
-                            "a_learning_rate": a_lr,
+                            "a_w_learning_rate": a_lr,
                             "num_solution": num_solution
                             ,"Backward": backward_for_test
                     }
                     #first version:
-                    dump_three_lists(train_top1_list, test_top1_list, list_train, "train_top1", "test_top1", "C",path="/home/gild/Lsq_with_gSTE/out", log_params=run_cfg  )
+                    dump_three_lists(train_top1_list, test_top1_list, list_train, "train_top1", "test_top1", "C",path=log_dir, log_params=run_cfg  )
                     append_result(
                     file_path=results_file,
                     train_val=t_top1,
@@ -800,9 +639,7 @@ def main_all_times_less_greedy(model,args,modules_to_replace_temp,train_loader,l
                     )
                     #second version:
                     #dump_three_lists(list_train, test_top1_list, [6], "train_top1", "test_top1", "C",path="/home/gild/Lsq_with_gSTE/out", log_params=run_cfg  )
-
-
-                    torch.save(model.state_dict(), '/home/gild/Lsq_with_gSTE/models_saved/num_sol_'+str(num_solution)+'_lr_'+str(a_lr_t)+"_each_time_"+str(num_of_epochs_each_time)+".pth")
+                    #torch.save(model.state_dict(), '/home/gild/Lsq_with_gSTE/models_saved/num_sol_'+str(num_solution)+'_lr_'+str(a_lr_t)+"_each_time_"+str(num_of_epochs_each_time)+".pth")
                     
                     prev_model = model.state_dict()
                     #print("befdeepcopy :",t.cuda.memory_summary(device=None, abbreviated=False))
@@ -858,7 +695,7 @@ def main_all_times_less_greedy(model,args,modules_to_replace_temp,train_loader,l
                     model=model_new
                     
                     
-                    optim = SGD_less_greedy_Updates(args.optimizer.learning_rate,0.0,a_lr_t)
+                    optim = SGD_less_greedy_Updates(args.optimizer.w_learning_rate,0.0,a_lr_t)
                     
                     mw = ModuleWrapper(model_new, optim, modules_to_replace_temp,args.quan.excepts)
 
