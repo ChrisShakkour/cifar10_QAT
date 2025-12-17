@@ -798,7 +798,6 @@ class LsqQuan(Quantizer):#Name is legacy look at the comment in the beggining of
         
 
     def forward(self, x):
-        
         if self.num_solution == -1:
             return self.forward_original( x)
         
@@ -814,17 +813,18 @@ class LsqQuan(Quantizer):#Name is legacy look at the comment in the beggining of
             if regular_all_times_together_lsq_sgste:
                 return self.forward_all_times_original(x)
                 
-            dorefa_alltimes =False
+            # DoReFa with PWL/Dual PWL/STE
+            dorefa_alltimes =True
             if dorefa_alltimes==True:
                 dual_dorefa=False
                 if dual_dorefa == True:
                     return self.forward_dorefa_1bit_DualPWL(x)
                 else:
-                    return self.forward_dorefa_1bit_PWL(x)
+                    return self.forward_dorefa_1bit_PWL(x) # Piece-wise linear STE on dorefa binary weights
             else:
                 ste_binary_dorefa=True
                 if ste_binary_dorefa==True:
-                    return self.forward_dorefa_1bit_STE(x)
+                    return self.forward_dorefa_1bit_STE(x) #regular STE on dorefa binary weights
                 else:
                     return self.forward_all_times( x)
         elif self.num_solution == 8:
