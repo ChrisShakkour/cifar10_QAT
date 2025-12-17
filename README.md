@@ -74,7 +74,19 @@ QAT simulates fixed‑point quantization of weights and activations during train
    ```bash
    pip install -r requirements.txt
    ```
+   
+6. **Keep long runs from crashig when SSH exits**
 
+   ```bash
+   tmux new -s train
+   python train.py
+   Ctrl + B, then D
+
+   # to see the jobs from another terminal run->
+   tmux ls
+   # to reattach run ->
+   tmux attach -t train
+   ```
 ---
 
 ## 🧠 Usage
