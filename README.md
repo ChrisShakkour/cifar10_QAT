@@ -40,22 +40,27 @@ QAT simulates fixed‑point quantization of weights and activations during train
 ---
 
 ## 📦 Installation
+1. **Fix interactive shell:**
 
-1. **Clone the repository:**
+   ```bash
+   exec bash
+   ```
+
+2. **Clone the repository:**
 
    ```bash
    git clone https://github.com/ChrisShakkour/cifar10_QAT.git
    cd cifar10_QAT
    ```
 
-2. **Set up a Python environment:**
+3. **Set up a Python environment:**
 
    ```bash
    python -m venv venv
    source venv/bin/activate  # macOS/Linux
    venv\Scripts\activate     # Windows
    ```
-3. **Or Set up a miniconda3 environment:**
+4. **Or Set up a miniconda3 environment:**
 
    ```bash
    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
@@ -64,7 +69,7 @@ QAT simulates fixed‑point quantization of weights and activations during train
    conda create --name venv
    ```
    
-4. **Install dependencies:**
+5. **Install dependencies:**
 
    ```bash
    pip install -r requirements.txt
