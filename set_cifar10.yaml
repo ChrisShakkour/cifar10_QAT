@@ -31,7 +31,7 @@ dataloader:
   # Number of categories in the specified dataset (choices: 1000, 10)
   num_classes: 10
   # Path to dataset directory
-  path: /home/gild/Datasets/cifar10/
+  path: /home/chris/Datasets/cifar10/
   # Size of mini-batch
   batch_size: 256
   # Number of data loading workers
