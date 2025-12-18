@@ -29,6 +29,7 @@ from util.save_data import plot_4_arrays_save
 from util.save_data import dump_three_lists
 from util.save_data import init_results_file
 from util.save_data import append_result
+from util.memory_stats import print_model_parameters
 
 
 def set_random_seed(random_seed):
@@ -231,6 +232,9 @@ def main():
     modules_to_replace_temp=dict(modules_to_replace)
     model = quan.replace_module_by_names(model, modules_to_replace)
     logger.info('Inserted quantizers into the original model')
+    
+    # Print model parameter statistics
+    print_model_parameters(model)
 
     if args.device.gpu and not args.dataloader.serialized:
         model = t.nn.DataParallel(model, device_ids=args.device.gpu)

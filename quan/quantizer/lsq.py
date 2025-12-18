@@ -816,13 +816,13 @@ class LsqQuan(Quantizer):#Name is legacy look at the comment in the beggining of
             # DoReFa with PWL/Dual PWL/STE
             dorefa_alltimes =True
             if dorefa_alltimes==True:
-                dual_dorefa=False
+                dual_dorefa=True
                 if dual_dorefa == True:
-                    return self.forward_dorefa_1bit_DualPWL(x)
+                    return self.forward_dorefa_1bit_DualPWL(x) # Dual PWL STE on dorefa binary weights
                 else:
                     return self.forward_dorefa_1bit_PWL(x) # Piece-wise linear STE on dorefa binary weights
             else:
-                ste_binary_dorefa=True
+                ste_binary_dorefa=False
                 if ste_binary_dorefa==True:
                     return self.forward_dorefa_1bit_STE(x) #regular STE on dorefa binary weights
                 else:
