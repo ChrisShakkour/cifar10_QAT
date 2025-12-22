@@ -22,16 +22,16 @@ device:
   # Use CPU or GPU (choices: cpu, cuda)
   type: cuda
   # GPU device IDs to be used. Only valid when device.type is 'cuda'
-  gpu: [0]
+  gpu: [4]
 
 # Dataset loader
 dataloader:
   # Dataset to train/validate (choices: imagenet, cifar10)
-  dataset: imagenet
+  dataset: cifar10
   # Number of categories in the specified dataset (choices: 1000, 10)
-  num_classes: 1000
+  num_classes: 10
   # Path to dataset directory
-  path: /home/hagaymi/Datasets/imagenet/
+  path: /home/chris/Datasets/cifar10/
   # Size of mini-batch
   batch_size: 256
   # Number of data loading workers
@@ -64,7 +64,7 @@ log:
 #     resnet18, resnet34, resnet50, resnet101, resnet152
 #   CIFAR10:
 #     resnet20, resnet32, resnet44, resnet56, resnet110, resnet1202
-arch: resnet18
+arch: resnet20
 
 # Use pre-trained model
 pre_trained: true
@@ -111,20 +111,19 @@ quan:
 
 # Evaluate the model without training
 # If this field is true, all the bellowing options will be ignored
-eval: false
+eval: false # bullshit
 
 baseline_eval: false # Run validation on the baseline model in 32 bit before quantization training
 baseline_training: false # fully train the baseline model in 32 bit without quantization no STE -> set num of epochs accordigly
 
-epochs: 2
-num_chuncks_per_mini_epoch: 15  # K-mini epochs batch size:256 chunks:[6, 15]
-num_epochs_div_repeats: 1
+epochs: 4 # num of times the weights were trained befor eupdating a 
+num_epochs_div_repeats: 50
 
 optimizer:
-  w_learning_rate: 0.02
-  a_learning_rate: 1e7  # LSTE Learning Rate  
-  momentum: 0
-  weight_decay: 0
+  w_learning_rate: 0.02 # Weights Learning Rate
+  a_learning_rate: 2e5  # LSTE Learning Rate
+  momentum: 0.0
+  weight_decay: 0.0
 
 # Learning rate scheduler
 lr_scheduler:

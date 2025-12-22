@@ -72,34 +72,83 @@ def plot_from_npy_files(baseline_array, file1, file2, file3, file4,
         ylabel=ylabel
     )
 
+def plot_from_npy_files_4(baseline_array, file1, file2, file3,
+                        labels=None,
+                        title="Plot of Four Arrays from .npy Files",
+                        xlabel="Index",
+                        ylabel="Value"):
+    """
+    Load four .npy files and plot them on the same figure.
+    """
+    arr0 = baseline_array
+    arr1 = np.load(file1)
+    arr2 = np.load(file2)
+    arr3 = np.load(file3)
+
+    plot_five_arrays(
+        arr0, arr1, arr2, arr3,
+        labels=labels,
+        title=title,
+        xlabel=xlabel,
+        ylabel=ylabel
+    )
 
 def main_cifar10():
+    # plot_from_npy_files(
+    #     baseline_array = np.full(200, 99.77),
+    #     file1="/home/chris/git/cifar10_QAT/out/MyProject_20251217-010600_baseline_training_200/train_top1.npy",
+    #     file2="/home/chris/git/cifar10_QAT/out/MyProject_20251216-225657_dorefa_with_ste_200/train_top1.npy",
+    #     file3="/home/chris/git/cifar10_QAT/out/MyProject_20251217-222443_dorefa_with_pwl_200/train_top1.npy",
+    #     file4="/home/chris/git/cifar10_QAT/out/MyProject_20251218-050134_dorefa_with_dwl_200/train_top1.npy",
+    #     labels=["Baseline 32-bit validation",
+    #             "Baseline 32-bit training",
+    #             "DoReFa 1-bit with Regular STE",
+    #             "DoReFa 1-bit with PWL STE",
+    #             "DoReFa 1-bit with DWL STE"],
+    #     title="train_top1_compare"
+    # )
+    # plot_from_npy_files(
+    #     baseline_array = np.full(200,91.73),
+    #     file1="/home/chris/git/cifar10_QAT/out/MyProject_20251217-010600_baseline_training_200/test_top1.npy",
+    #     file2="/home/chris/git/cifar10_QAT/out/MyProject_20251216-225657_dorefa_with_ste_200/test_top1.npy",
+    #     file3="/home/chris/git/cifar10_QAT/out/MyProject_20251217-222443_dorefa_with_pwl_200/test_top1.npy",
+    #     file4="/home/chris/git/cifar10_QAT/out/MyProject_20251218-050134_dorefa_with_dwl_200/test_top1.npy",
+    #     labels=["Baseline 32-bit validation",
+    #             "Baseline 32-bit training",
+    #             "DoReFa 1-bit with Regular STE",
+    #             "DoReFa 1-bit with PWL STE",
+    #             "DoReFa 1-bit with DWL STE"],
+    #     title="test_top1_compare"
+    # )
     plot_from_npy_files(
         baseline_array = np.full(200, 99.77),
         file1="/home/chris/git/cifar10_QAT/out/MyProject_20251217-010600_baseline_training_200/train_top1.npy",
-        file2="/home/chris/git/cifar10_QAT/out/MyProject_20251216-225657_dorefa_with_ste_200/train_top1.npy",
-        file3="/home/chris/git/cifar10_QAT/out/MyProject_20251217-222443_dorefa_with_pwl_200/train_top1.npy",
-        file4="/home/chris/git/cifar10_QAT/out/MyProject_20251218-050134_dorefa_with_dwl_200/train_top1.npy",
+        file2="/home/chris/git/cifar10_QAT/out/MyProject_20251218-175146_dorefa_with_ste_200_non_learned/train_top1.npy",
+        file3="/home/chris/git/cifar10_QAT/out/MyProject_20251216-225657_dorefa_with_ste_200/train_top1.npy",
+        file4="/home/chris/git/cifar10_QAT/out/MyProject_20251221-212414_dorefa_with_ste_200_2e6/train_top1.npy",
         labels=["Baseline 32-bit validation",
                 "Baseline 32-bit training",
-                "DoReFa 1-bit with Regular STE",
-                "DoReFa 1-bit with PWL STE",
-                "DoReFa 1-bit with DWL STE"],
+                "DoReFa 1-bit with Non-learned STE a=1.0",
+                "DoReFa 1-bit with Learned STE a_lr=1e5",
+                "DoReFa 1-bit with Learned STE a_lr=2e6"],
         title="train_top1_compare"
     )
     plot_from_npy_files(
         baseline_array = np.full(200,91.73),
         file1="/home/chris/git/cifar10_QAT/out/MyProject_20251217-010600_baseline_training_200/test_top1.npy",
-        file2="/home/chris/git/cifar10_QAT/out/MyProject_20251216-225657_dorefa_with_ste_200/test_top1.npy",
-        file3="/home/chris/git/cifar10_QAT/out/MyProject_20251217-222443_dorefa_with_pwl_200/test_top1.npy",
-        file4="/home/chris/git/cifar10_QAT/out/MyProject_20251218-050134_dorefa_with_dwl_200/test_top1.npy",
+        file2="/home/chris/git/cifar10_QAT/out/MyProject_20251218-175146_dorefa_with_ste_200_non_learned/test_top1.npy",
+        file3="/home/chris/git/cifar10_QAT/out/MyProject_20251216-225657_dorefa_with_ste_200/test_top1.npy",
+        file4="/home/chris/git/cifar10_QAT/out/MyProject_20251221-212414_dorefa_with_ste_200_2e6/test_top1.npy",
         labels=["Baseline 32-bit validation",
                 "Baseline 32-bit training",
-                "DoReFa 1-bit with Regular STE",
-                "DoReFa 1-bit with PWL STE",
-                "DoReFa 1-bit with DWL STE"],
+                "DoReFa 1-bit with Non-learned STE a=1.0",
+                "DoReFa 1-bit with Learned STE a_lr=1e5",
+                "DoReFa 1-bit with Learned STE a_lr=2e6"],
         title="test_top1_compare"
     )
+
+
+plot_from_npy_files_4
 
 
 if __name__ == "__main__":

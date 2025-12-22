@@ -1,3 +1,4 @@
+from itertools import islice
 import logging
 from pathlib import Path
 import gc
@@ -226,7 +227,8 @@ def main():
         baseline_model_training(model,criterion,args,logger,train_loader,test_loader,monitors,log_dir)
         return
 
-    T = len(train_loader)*num_of_epochs_each_time# A vector length for All times together solution (# of learning steps before update)
+    num_chuncks_per_mini_epoch = int(args.num_chuncks_per_mini_epoch)
+    T = ((len(train_loader) * num_of_epochs_each_time) / num_chuncks_per_mini_epoch) # A vector length for All times together solution (# of learning steps before update)
     list_for_lsq=[T, a_per,num_share_params]
     modules_to_replace = quan.find_modules_to_quantize(model, args.quan,num_solution, list_for_lsq)
     modules_to_replace_temp=dict(modules_to_replace)
@@ -235,6 +237,7 @@ def main():
     
     # Print model parameter statistics
     print_model_parameters(model)
+    #import pdb; pdb.set_trace()
 
     if args.device.gpu and not args.dataloader.serialized:
         model = t.nn.DataParallel(model, device_ids=args.device.gpu)
@@ -383,7 +386,11 @@ def main_all_times_repeat(model,args,modules_to_replace_temp,train_loader,logger
         )
 
         for seg in range(0,args.num_epochs_div_repeats):
-            print(seg," Segment of training, using the optimal weights we found for previous segment")
+            logging.info("Starting segment number : ",seg)
+            gc.collect()
+            torch.cuda.empty_cache()
+
+            #print(seg," Segment of training, using the optimal weights we found for previous segment")
             model_copy=None
             model_copy = copy.deepcopy(model)
             optim = SGD_Delayed_Updates(args.optimizer.w_learning_rate,0.0,args.optimizer.a_learning_rate)
@@ -403,37 +410,42 @@ def main_all_times_repeat(model,args,modules_to_replace_temp,train_loader,logger
                 for times in range(start_epoch, args.epochs):
                     #print("beg :",t.cuda.memory_summary(device=None, abbreviated=False))
                     set_random_seed(temp_seed)
+                    logging.info(times ," time of finding the optimal weights for this segment")                    
 
-                    print(times ," time of finding the optimal weights for this segment")                    
+                    # ------- Training a values for all times together -----------
+                    for chuck_idx in range(args.num_chuncks_per_mini_epoch):
+                        logging.info("  Mini-epoch chunk : ",chuck_idx)
+                        start_batch = chuck_idx * int(len(train_loader) / args.num_chuncks_per_mini_epoch)
+                        end_batch   = start_batch + int(len(train_loader) / args.num_chuncks_per_mini_epoch)
 
-                    train_a_all_times(times,val_loader,train_loader,start_epoch,T,criterion,monitors,args,logger,perf_scoreboard,tbmonitor,mw,num_solution,num_of_epochs_each_time,seg,test_loader)
-                    #recalibrate BN
-                    with t.no_grad():
-                        for inputs, _ in train_loader: 
-                            outputs = mw.forward(inputs)
-                    v_top1, v_top5, v_loss = process.validate(test_loader, mw, criterion, start_epoch, monitors, args)
-                    v_top1_list.append(v_top1)
-                    test_loss.append(v_loss)
+                        train_a_all_times(times,val_loader,train_loader,start_epoch,T,criterion,monitors,args,logger,perf_scoreboard,tbmonitor,mw,num_solution,num_of_epochs_each_time,seg,test_loader)
+                        #recalibrate BN
+                        with t.no_grad():
+                            for inputs, _ in islice(train_loader, start_batch, end_batch):
+                                outputs = mw.forward(inputs)
                         
-                    t_top1, t_top5, t_loss =process.validate(train_loader, mw, criterion, start_epoch, monitors, args)
-                    # v_top1, v_top5, v_loss = process.validate(test_loader, mw, criterion, start_epoch, monitors, args)
-                    train_top1_list.append(t_top1)
-                    test_top1_list.append(v_top1)
-                    train_loss.append(t_loss)
-
-                    run_cfg = {
-                            "a_w_learning_rate": args.optimizer.a_learning_rate,
-                            "num_solution": num_solution
-                            ,"Backward": backward_for_test
-                    }
-                    #first version:
-                    dump_three_lists(train_top1_list, test_top1_list, list_train, "train_top1", "test_top1", "C",path=log_dir, log_params=run_cfg  )
-                    append_result(
-                    file_path=results_file,
-                    train_val=t_top1,
-                    test_val=v_top1,
-                    c_value=list_train[-1]
-                )
+                        v_top1, v_top5, v_loss = process.validate(test_loader, mw, criterion, start_epoch, monitors, args, 0, len(test_loader))
+                        test_top1_list.append(v_top1)
+                        test_loss.append(v_loss)
+                        #v_top1_list.append(v_top1)
+                        
+                        t_top1, t_top5, t_loss =process.validate(train_loader, mw, criterion, start_epoch, monitors, args, start_batch, end_batch)
+                        train_top1_list.append(t_top1)
+                        train_loss.append(t_loss)
+                        run_cfg = {
+                                "a_w_learning_rate": args.optimizer.a_learning_rate,
+                                "num_solution": num_solution
+                                ,"Backward": backward_for_test
+                        }
+                        #first version:
+                        dump_three_lists(train_top1_list, test_top1_list, list_train, "train_top1", "test_top1", "C",path=log_dir, log_params=run_cfg  )
+                        append_result(
+                        file_path=results_file,
+                        train_val=t_top1,
+                        test_val=v_top1,
+                        c_value=list_train[-1]
+                        )
+                        # ----------------------------------------------
 
                     if v_top1>best_acc and take_Best:
                         print("am here er er er @!$%!#%!#%@!#$@!#@!$!@%$!@%!@")
@@ -442,9 +454,7 @@ def main_all_times_repeat(model,args,modules_to_replace_temp,train_loader,logger
                     #torch.save(model.state_dict(), '/home/gild/Lsq_with_gSTE/models_saved/num_sol_'+str(num_solution)+'_lr_'+str(args.optimizer.a_learning_rate)+"_each_time_"+str(num_of_epochs_each_time)+".pth")
                     
                     prev_model = model.state_dict()
-                    
                     model_new= copy.deepcopy(model_copy)
-                    
                     
                     with torch.no_grad():#saving trained a values between iterations
                         flag=0
@@ -502,8 +512,8 @@ def main_all_times_repeat(model,args,modules_to_replace_temp,train_loader,logger
                     mw.initialize()
                     gc.collect()
                     torch.cuda.empty_cache()
-                    print("v_top1_list on train : ",v_top1_list)
-                    logger.info(("v_top1_list on train : "+str(v_top1_list)))
+                    print("v_top1_list on train : ",test_top1_list)
+                    logger.info(("v_top1_list on train : "+str(test_top1_list)))
                     #print("stats list ",stats_list)
                     #print("end",t.cuda.memory_summary(device=None, abbreviated=False))
             temp_seed+=1
@@ -529,6 +539,11 @@ def main_all_times(model,args,modules_to_replace_temp,train_loader,logger,test_l
     model_copy = copy.deepcopy(model)
     compare_models(model_copy, model)
 
+    train_top1_list=[]
+    test_top1_list = []
+    train_loss = []
+    test_loss = []
+
     optim = SGD_Delayed_Updates(args.optimizer.w_learning_rate,0.0,args.optimizer.a_learning_rate)
     mw = ModuleWrapper(model, optim, modules_to_replace_temp,args.quan.excepts)
     mw.initialize()
@@ -540,25 +555,24 @@ def main_all_times(model,args,modules_to_replace_temp,train_loader,logger,test_l
     if args.eval:
         process.validate(test_loader, mw, criterion, -1, monitors, args)
     else:  # training
-        
         for times in range(start_epoch, args.epochs):
             #set_random_seed(seed)  
+            train_a_all_times(times,val_loader,train_loader,start_epoch,T,criterion,monitors,args,logger,perf_scoreboard,tbmonitor,mw,num_solution,num_of_epochs_each_time,0,test_loader)
+            
+            v_top1, v_top5, v_loss = process.validate(train_loader, mw, criterion, start_epoch, monitors, args)
+            train_top1_list.append(v_top1)
+            train_loss.append(v_loss)
 
             v_top1, v_top5, v_loss = process.validate(test_loader, mw, criterion, start_epoch, monitors, args)
-
-            train_a_all_times(times,val_loader,train_loader,start_epoch,T,criterion,monitors,args,logger,perf_scoreboard,tbmonitor,mw,num_solution,num_of_epochs_each_time,0)
-            
-            v_top1, v_top5, v_loss = process.validate(test_loader, mw, criterion, start_epoch, monitors, args)
-            
             v_top1_list.append(v_top1)
+            test_top1_list.append(v_top1)
+            test_loss.append(v_loss)
+
             #torch.save(model.state_dict(), '/home/gild/Lsq_with_gSTE/models_saved/num_sol_'+str(num_solution)+'_lr_'+str(args.optimizer.a_learning_rate)+"_each_time_"+str(num_of_epochs_each_time)+".pth")
             
             prev_model = model.state_dict()
-            
             model_new= copy.deepcopy(model_copy)
-            
-            
-            
+             
             if num_solution == 8:
                 model_new.load_state_dict(prev_model)
             else:
@@ -574,18 +588,12 @@ def main_all_times(model,args,modules_to_replace_temp,train_loader,logger,test_l
             
             model=None
             model=model_new
-            
-            
             optim = SGD_Delayed_Updates(args.optimizer.w_learning_rate,0.0,args.optimizer.a_learning_rate)
-            
             mw = ModuleWrapper(model_new, optim, modules_to_replace_temp,args.quan.excepts)
-
             mw.initialize()
-
             v_top1, v_top5, v_loss = process.validate(test_loader, mw, criterion, start_epoch, monitors, args)
             gc.collect()
             torch.cuda.empty_cache()
-            
             print("v_top1_list : ",v_top1_list)        
             
         
@@ -597,8 +605,19 @@ def main_all_times(model,args,modules_to_replace_temp,train_loader,logger,test_l
         logger.info('Program completed successfully ... exiting ...')
         logger.info('If you have any questions or suggestions, please visit: github.com/zhutmost/lsq-net')
 
+    #save_and_plot_losses(loss_list       , str(log_dir) + "/overall_loss.npy" , str(log_dir) + "/overall_loss.png" , "loss" , "Overall Loss")
+    save_and_plot_losses(test_loss       , str(log_dir) + "/test_loss.npy"    , str(log_dir) + "/test_loss.png"    , "loss" , "Test Loss")
+    save_and_plot_losses(train_loss      , str(log_dir) + "/train_loss.npy"   , str(log_dir) + "/train_loss.png"   , "loss" , "Train Loss")
+    save_and_plot_losses(train_top1_list , str(log_dir) + "/train_top1.npy"   , str(log_dir) + "/train_top1.png"   , "top1" , "Train Top1 Accuracy")
+    save_and_plot_losses(test_top1_list  , str(log_dir) + "/test_top1.npy"    , str(log_dir) + "/test_top1.png"    , "top1" , "Test Top1 Accuracy")
+    plot_4_arrays_save(arr1=train_top1_list, arr2=test_top1_list, arr3=train_loss, arr4=test_loss,
+                        save_path=str(log_dir) + "/all_top1.png",
+                        cmap="viridis",
+                        titles=["Train Top1 Accuracy", "Test Top1 Accuracy", "Train Loss", "Test Loss"])
 
-def train_a_all_times(times,val_loader,train_loader,start_epoch,T,criterion,monitors,args,logger,perf_scoreboard,tbmonitor,mw,num_solution,num_of_epochs_each_time,base,test_loader):
+
+
+def train_a_all_times(times,val_loader,train_loader,start_epoch,T,criterion,monitors,args,logger,perf_scoreboard,tbmonitor,mw,num_solution,num_of_epochs_each_time,base,test_loader,start_batch=0,end_batch=None):
     print(" Starting ",times," time of updating a")
     mw.begin()
     #if num_solution == 12:
@@ -612,33 +631,27 @@ def train_a_all_times(times,val_loader,train_loader,start_epoch,T,criterion,moni
     train_top1_list=[]
     test_top1_list=[]
     for epoch in range(num_of_epochs_each_time):
-        
         logger.info('>>>>>>>> Epoch %3d' % (base*num_of_epochs_each_time+epoch))
-        
-        t_top1, t_top5, t_loss = process.train_all_times(train_loader, mw,num_solution,T, criterion, epoch, monitors, args,base*num_of_epochs_each_time)
+        t_top1, t_top5, t_loss = process.train_all_times(train_loader, mw,num_solution,T, criterion, epoch, monitors, args,base*num_of_epochs_each_time, start_batch, end_batch)
         # v_top1, v_top5, v_loss = process.validate(test_loader, mw, criterion, start_epoch, monitors, args)
         loss_list.append(t_loss)
-        
         prev_last=last_train
         last_train=[times,t_top1]
-
         this_training_list.append(t_top1)
         count+=1
 
         if num_of_epochs_each_time == count:
             rng = random.Random()
-            
             num=rng.randint(1, 100)
             print("num is : ",num)
             #recalibrate BN
             with t.no_grad():
-                for inputs, _ in train_loader: 
+                for inputs, _ in train_loader:  # HERE
                     outputs = mw.forward(inputs)
 
             set_random_seed(num)  
-            vont_top1, _, _ = process.validate(train_loader, mw, criterion, start_epoch, monitors, args)
+            vont_top1, _, _ = process.validate(train_loader, mw, criterion, start_epoch, monitors, args, start_batch, end_batch)
             list_vont_top1.append([times,vont_top1])
-
             mw.step_a()
             mw.zero_grad()
             count=0

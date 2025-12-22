@@ -1,3 +1,4 @@
+from itertools import islice
 import logging
 import math
 import operator
@@ -80,13 +81,11 @@ def train(train_loader, model, criterion, optimizer, lr_scheduler, epoch, monito
 
 
 
-def train_all_times(train_loader, model,num_solution,T, criterion, epoch, monitors, args,base):
-    mw=model
-
-    
+def train_all_times(train_loader, model,num_solution,T, criterion, epoch, monitors, args,base,start_batch=None,end_batch=None):
+    mw = model
     losses = AverageMeter()
-    top1 = AverageMeter()
-    top5 = AverageMeter()
+    top1   = AverageMeter()
+    top5   = AverageMeter()
     batch_time = AverageMeter()
 
     total_sample = len(train_loader.sampler)
@@ -100,9 +99,10 @@ def train_all_times(train_loader, model,num_solution,T, criterion, epoch, monito
     prev_grads = {}
     counter = 0
     
-    for batch_idx, (inputs, targets) in enumerate(train_loader):        
+    for batch_idx, (inputs, targets) in enumerate(
+        islice(train_loader, start_batch, end_batch), 
+        start=start_batch):
         mw.begin_w()
-        #print("t.cuda.memory_summary",t.cuda.memory_summary(device=None, abbreviated=False))
 
         if batch_idx == 1:
             print(f"Batch {batch_idx+1}:")
@@ -121,22 +121,12 @@ def train_all_times(train_loader, model,num_solution,T, criterion, epoch, monito
         top5.update(acc5.item(), inputs.size(0))
         
         if counter != 0 and counter%T ==0:
-            
-
             mw.step_a()
             mw.zero_grad()
         
-
         mw.zero_grad_not_a()
-        
         loss.backward(create_graph=True)
         mw.step_w()
-        #print("after step w :",t.cuda.memory_summary(device=None, abbreviated=False))
-
-        #mw.step_a()
-        #mw.zero_grad()
-        #if counter ==10:
-        #    mw.step_a()
         batch_time.update(time.time() - end_time)
         end_time = time.time()
         
@@ -330,21 +320,22 @@ train_DelayedUpdates.counter=0
 
 
 
-def validate(data_loader, model, criterion, epoch, monitors, args):
+def validate(data_loader, model, criterion, epoch, monitors, args, start_batch=None, end_batch=None):
     losses = AverageMeter()
     top1 = AverageMeter()
     top5 = AverageMeter()
     batch_time = AverageMeter()
 
-    total_sample = len(data_loader.sampler)
-    batch_size = data_loader.batch_size
+    batch_size      = data_loader.batch_size
+    total_sample    = (end_batch - start_batch)*batch_size # len(data_loader.sampler)
     steps_per_epoch = math.ceil(total_sample / batch_size)
-
     logger.info('Validation: %d samples (%d per mini-batch)', total_sample, batch_size)
 
     model.eval()
     end_time = time.time()
-    for batch_idx, (inputs, targets) in enumerate(data_loader):
+    for batch_idx, (inputs, targets) in enumerate(
+        islice(data_loader, start_batch, end_batch), 
+        start=start_batch):
         with t.no_grad():
             inputs = inputs.to(args.device.type)
             targets = targets.to(args.device.type)

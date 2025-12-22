@@ -117,11 +117,11 @@ baseline_eval: false # Run validation on the baseline model in 32 bit before qua
 baseline_training: false # fully train the baseline model in 32 bit without quantization no STE -> set num of epochs accordigly
 
 epochs: 4 # num of times the weights were trained befor eupdating a 
-num_epochs_div_repeats: 50
+num_epochs_div_repeats: 15
 
 optimizer:
   w_learning_rate: 0.02 # Weights Learning Rate
-  a_learning_rate: 2e5  # LSTE Learning Rate
+  a_learning_rate: 1e7  # LSTE Learning Rate
   momentum: 0.0
   weight_decay: 0.0
 
